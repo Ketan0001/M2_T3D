@@ -19,10 +19,10 @@ struct TrafficData {
 
 class TrafficControl {
 private:
-    std::queue<TrafficData> trafficQueue; // Queue to store traffic data
-    std::mutex mutex; // Mutex for synchronization
-    std::condition_variable producerCV, consumerCV; // Condition variables for synchronization
-    std::vector<TrafficData> topCongestedLights; // Vector to store top congested traffic lights
+    std::queue<TrafficData> trafficQueue;
+    std::mutex mutex;
+    std::condition_variable producerCV, consumerCV;
+    std::vector<TrafficData> topCongestedLights;
     std::atomic<bool> isProducerDone{false}; // Flag to indicate producer completion
 
     const int maxQueueSize = 100; // Maximum capacity of the traffic queue
@@ -64,7 +64,7 @@ public:
     }
 
     // Consumer function to process traffic data from the queue
-    void consumer(int consumerID) {
+    void consumer() {
         while (true) {
             std::unique_lock<std::mutex> lock(mutex);
             consumerCV.wait(lock, [this]() { return !trafficQueue.empty() || isProducerDone; });
@@ -83,7 +83,7 @@ public:
         }
     }
 
-    // Process traffic data and update the top congested lights list
+    // Function to process traffic data and update the list of top congested lights
     void processTrafficData(const TrafficData& data) {
         if (topCongestedLights.size() < topCongestionLights) {
             topCongestedLights.push_back(data);
@@ -98,14 +98,14 @@ public:
         std::sort(topCongestedLights.begin(), topCongestedLights.end(),
             [](const TrafficData& a, const TrafficData& b) { return a.carDensity > b.carDensity; });
 
-        std::cout << "Consumer " << consumerID << ": Updated top congested lights list - ";
+        std::cout << "Consumer: Updated top congested lights list - ";
         for (const auto& light : topCongestedLights) {
             std::cout << "(Light ID: " << light.trafficLightID << ", Car density: " << light.carDensity << ") ";
         }
         std::cout << std::endl;
     }
 
-    // Start the traffic simulation with the given filename and number of consumers
+    // Function to start the simulation with the given filename and number of consumers
     void startSimulation(const std::string& filename, int numConsumers) {
         std::vector<std::thread> producerThreads, consumerThreads;
 
@@ -114,8 +114,8 @@ public:
         });
 
         for (int i = 0; i < numConsumers; ++i) {
-            consumerThreads.emplace_back([this, i]() {
-                this->consumer(i);
+            consumerThreads.emplace_back([this]() {
+                this->consumer();
             });
         }
 
@@ -131,7 +131,7 @@ public:
 
 int main() {
     TrafficControl simulator;
-    std::string filename = "traffic_data.txt";
+    std::string filename = "data.txt";
     int numConsumers = 5;
     simulator.startSimulation(filename, numConsumers);
     return 0;
